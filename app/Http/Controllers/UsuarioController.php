@@ -1,144 +1,120 @@
 <?php
 
-	namespace App\Http\Controllers;
-
+namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class UsuarioController extends Controller
 {
-   
-  
-    function registrar(Request $request) 
+    public function registrar(Request $request) 
     {
-		    //Validando os dados da requisição
         $dados = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed'
         ]);
 
-				//Recebendo todos os dados na variável $dados
         $dados['password'] = bcrypt($dados['password']);
         $dados['picture'] = 'https://cdn0.iconfinder.com/data/icons/seo-web-4-1/128/Vigor_User-Avatar-Profile-Photo-02-1024.png';
         $dados['status'] = 'active';
         $dados['enabled'] = true;
 
-				//Inserindo no banco de dados
         $usuario = User::create($dados);
 
-				// Criando um token de acesso para o usuário
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
-				// Enviando todos os dados para o front-end
         return response()->json([
             'message' => 'Usuário registrado com sucesso.',
             'user' => $usuario,
-            'token' => $token
+            'access_token' => $token,
+            'token_type' => 'Bearer'
         ], 201);
     }
 
-   public function login(Request $request)
-{
-    $request->validate([
-        'email' => 'required|email',
-        'password' => 'required|string',
-    ]);
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
 
-    $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
-    if (!$user || !\Hash::check($request->password, $user->password)) {
-        return response()->json(['message' => 'Credenciais inválidas'], 401);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Credenciais inválidas'], 401);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
+        ]);
     }
 
-    // cria token
-    $token = $user->createToken('auth_token')->plainTextToken;
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logout realizado com sucesso.']);
+    }
+
+    public function fotoUpload(Request $request)
+{
+    $request->validate([
+        'picture' => 'required|image|mimes:jpg,jpeg,png|max:2048'
+    ]);
+
+    $usuario = $request->user();
+
+    $path = $request->file('picture')->store('pictures', 'public');
+
+    $usuario->update(['picture' => $path]);
 
     return response()->json([
-        'access_token' => $token,
-        'token_type' => 'Bearer',
-        'user' => $user,
+        'message' => 'Foto enviada com sucesso.',
+        // Aqui garantimos URL completa
+        'picture_url' => url('storage/' . $path)
     ]);
 }
 
 
-    function logout(Request $request)
+    public function desativarConta(Request $request)
     {
-		    //Apagando o token do usuário no servidor
-		    //Quando o front-end for buscar o token, não encontrará e desonectará
-        $request->user()->currentAccessToken()->delete();
-
-				//Enviando resposta para o front-end
-        return response()->json(['message' => 'Logout realizado com sucesso.']);
-    }
-
-
-    function fotoUpload(Request $request)
-    {
-		    //Validando o formato da imagem
-        $request->validate([
-            'picture' => 'required|image|mimes:jpg,jpeg,png|max:2048'
-        ]);
-
-				//Recuperando do model User as informações do usuário que já estão
-				//alocadas em memória
         $usuario = $request->user();
-        //Definindo o caminho onde serão salva as imagens no servidor
-        //está também relalizando o upload da imagem para a pasta public
-        $path = $request->file('picture')->store('pictures', 'public');
 
-				//Atualizando a tabela do Banco com o caminho da imagem
-        $usuario->update(['picture' => $path]);
-
-				//retornando uma resposta para o front-end
-        return response()->json([
-            'message' => 'Foto enviada com sucesso.',
-            'picture_url' => asset('storage/' . $path)
-        ]);
-    }
-
-
-    function desativarConta(Request $request)
-    {
-		    //Recupera os dados do User Model alocado em memória
-        $usuario = $request->user();
-        //Atualiza os campos da tabela do banco de dados
         $usuario->update(['enabled' => false, 'status' => 'inactive']);
 
-				//Retorna para o front-end a resposta
         return response()->json(['message' => 'Conta desativada com sucesso.']);
     }
 
-    function perfil(Request $request)
+    public function perfil(Request $request)
     {
-		    //Exibe os dados do usuário que estão alocados em memória
         return response()->json($request->user());
     }
 
-    function editar(Request $request)
+    public function editar(Request $request)
     {
-		    //Recupera do model os dados do usuário que estão alocados em memória
         $usuario = $request->user();
 
-				//Validação dos dados da requisição
         $dados = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $usuario->id,
             'password' => 'nullable|string|min:6|confirmed'
         ]);
 
-				//Verifica a senha se está preenchida para poder editar
         if (!empty($dados['password'])) {
             $dados['password'] = bcrypt($dados['password']);
         } else {
             unset($dados['password']);
         }
-		
-				//Atualiza o BD com o array dos novos dados
+
         $usuario->update($dados);
 
-				//Retorna uma resposta para o front-end
         return response()->json([
             'message' => 'Dados atualizados com sucesso.',
             'user' => $usuario
