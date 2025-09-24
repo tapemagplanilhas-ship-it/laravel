@@ -78,7 +78,7 @@ class UsuarioController extends Controller
     return response()->json([
         'message' => 'Foto enviada com sucesso.',
         // Aqui garantimos URL completa
-        'picture_url' => url('storage/' . $path)
+        'picture_url' => url('storage/' . $usuario->picture)
     ]);
 }
 
