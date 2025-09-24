@@ -2,78 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StorePostRequest;
-use App\Http\Requests\UpdatePostRequest;
-use App\Models\Post;
 use Illuminate\Http\Request;
-
+use App\Models\Post;
+use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        return Post::with('user')->orderBy('created_at', 'desc')->get();
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request)
+    public function store(Request $request)
     {
-        $dados = $request->validate([
-            'description' => 'required|string|max:255'
+        $request->validate([
+            'conteudo' => 'required|string|max:1000',
         ]);
-        
-        $dados['picture'] = $request['picture'];
 
-        $post = Post::create($dados);
+        $post = Post::create([
+            'user_id' => Auth::id(),
+            'conteudo' => $request->conteudo,
+        ]);
 
-        return response()->json([
-            'message'=>'Postagem realizada!',
-            'post'=> $post,
-        ], 201);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StorePostRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Post $post)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Post $post)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdatePostRequest $request, Post $post)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Post $post)
-    {
-        //
+        return response()->json($post, 201);
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 class UsuarioController extends Controller
 {
    
+  
     function registrar(Request $request) 
     {
 		    //Validando os dados da requisição
@@ -38,32 +39,28 @@ class UsuarioController extends Controller
         ], 201);
     }
 
-    function login(Request $request)
-    {
-		    //Validando os Dados
-        $credenciais = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+   public function login(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string',
+    ]);
 
-				//Fazendo o Select no SQL
-        $usuario = User::where('email', $credenciais['email'])->first();
+    $user = User::where('email', $request->email)->first();
 
-				//Verificando a hash da senha do usuário
-        if (!$usuario || !\Hash::check($credenciais['password'], $usuario->password)) {
-            return response()->json(['message' => 'Credenciais inválidas'], 401);
-        }
-
-				//Gerando um token de acesso para o usuário
-        $token = $usuario->createToken('auth_token')->plainTextToken;
-
-				//Enviando todos os dados para o front-end
-        return response()->json([
-            'message' => 'Login realizado com sucesso.',
-            'user' => $usuario,
-            'token' => $token
-        ]);
+    if (!$user || !\Hash::check($request->password, $user->password)) {
+        return response()->json(['message' => 'Credenciais inválidas'], 401);
     }
+
+    // cria token
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'access_token' => $token,
+        'token_type' => 'Bearer',
+        'user' => $user,
+    ]);
+}
 
 
     function logout(Request $request)
