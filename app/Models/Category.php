@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class LogAcesso extends Model
+class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['log'];
+    public function products() {
+        return $this->hasMany(Product::class);
+    }
 }
